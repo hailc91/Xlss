@@ -19,7 +19,7 @@ using namespace std;
 
 int minVal = MIN_VALUE;
 int maxVal = MAX_VALUE;
-string inputFile = "test.txt";
+string inputFile = "test100M.txt";
 string outputFile = "result.txt";
 
 void writeResultToFile(deque<int> list, ofstream& out){
@@ -27,9 +27,7 @@ void writeResultToFile(deque<int> list, ofstream& out){
 	deque<int>::const_iterator tail = list.end();
 	for(head = list.begin(); head!=tail; ++head){
 		out<<*head<<" ";
-		//cout<<*head<<" "; 
 	}
-	//cout <<endl;
 }
 
 int sendDataToWorkers(int numBucket) {
@@ -52,7 +50,6 @@ int sendDataToWorkers(int numBucket) {
 		dest = dest >= numBucket - 1 ? numBucket - 1 : (dest <= 0 ? 0 : dest);
 		dest = dest + 1;
 		tag = dest;
-		//cout <<"bin: "<<dest<<" val: "<<value<<endl;
 		
 		MPI_Send(&value, 1, MPI_INT,  dest, tag, MPI_COMM_WORLD);
 	}
@@ -65,6 +62,7 @@ int receiveDataFromMaster(int indexBuck) {
 	fileName << indexBuck - 1;
 	string s = fileName.str();
 	ofstream output(s.c_str());
+	
 	if (!output.is_open()) {
 		cout << "Error when open files to write bucket\n";
 		MPI::COMM_WORLD.Abort(-1);
@@ -73,6 +71,7 @@ int receiveDataFromMaster(int indexBuck) {
 	
 	int value = INIT_PHRASE;
 	MPI_Status status;
+	
 	while(value != SORT_PHRASE) {
 		MPI_Recv(&value, 1, MPI_INT, 0, indexBuck, MPI_COMM_WORLD, &status);
 		output << value << " ";
@@ -97,6 +96,7 @@ int sendDataToMaster(int indexBuck) {
 	// wait until getting GATHER_PHRASE signal
 	int value = SORT_PHRASE;
 	MPI_Status status;
+	
 	while(value != GATHER_PHRASE) {
 		MPI_Recv(&value, 1, MPI_INT, 0, indexBuck, MPI_COMM_WORLD, &status);
 	}
@@ -117,6 +117,7 @@ int sendDataToMaster(int indexBuck) {
 int receiveDataFromWorkers(int indexBuck) {
 	
 	ofstream output(outputFile.c_str(), ios::app);
+	
 	if (!output.is_open()) {
 		cout << "Error when open files to write bucket\n";
 		MPI::COMM_WORLD.Abort(-1);
@@ -124,18 +125,19 @@ int receiveDataFromWorkers(int indexBuck) {
 	}
 	
 	int value = SORT_PHRASE;
-	deque<int> list;
+	//deque<int> list;
 	MPI_Status status;
+	
+	MPI_Recv(&value, 1, MPI_INT, indexBuck, indexBuck, MPI_COMM_WORLD, &status);
 	while(value != END_PHRASE) {
+		output << value << " ";
 		MPI_Recv(&value, 1, MPI_INT, indexBuck, indexBuck, MPI_COMM_WORLD, &status);
-		list.push_back(value);
+		//list.push_back(value);
 	}
 
-	list.pop_back();
-	writeResultToFile(list, output);
-	list.clear();
-	
-	//cout<<"bin: "<<indexBuck<<endl;
+	//list.pop_back();
+	//writeResultToFile(list, output);
+	//list.clear();
 	
 	output.close();
 	return 0;
@@ -147,7 +149,6 @@ int sortBucket(int indexBuck, int numBucket) {
 	string s = fileName.str();
 	ifstream input(s.c_str());
 	
-	
 	if (!input.is_open()) {
 		cout << "Error when open input files\n";
 		MPI::COMM_WORLD.Abort(-1);
@@ -157,6 +158,7 @@ int sortBucket(int indexBuck, int numBucket) {
 	int value;
 	deque<int> sortedList;
 	input >> value;
+	
 	if(value != SORT_PHRASE) {
 		sortedList.push_back(value);
 		while (input >> value) {
@@ -165,11 +167,15 @@ int sortBucket(int indexBuck, int numBucket) {
 	}
 	remove(s.c_str());
 	ofstream result(s.c_str());
+	
 	sort(sortedList.begin(), sortedList.end());
 	sortedList.pop_front();
+	
 	writeResultToFile(sortedList, result);
+	
 	sortedList.clear();
 	input.close();
+	return 0;
 }
 
 
@@ -185,7 +191,7 @@ int main(int argc, char** argv) {
 	if(rank == 0) {
 		// send numbers to bucket processors
 		startTime = MPI::Wtime();
-		//remove(outputFile.c_str());
+		remove(outputFile.c_str());
 		sendDataToWorkers(size - 1);
 		endTime = MPI::Wtime();
 		eslapsedTime = (endTime - startTime) * 1000;
