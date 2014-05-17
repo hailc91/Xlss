@@ -12,15 +12,7 @@ Find name of bucket, then put value to its bucket file
 */
 void SequenceBucketSort::PutToCorrectBucket(int value,
 		unsigned long indexBuck) {
-	std::ostringstream ss;
-	ss << indexBuck;
-	string s = ss.str();
-	ofstream out(s.c_str(), ios::app);
-	if (!out.is_open()) {
-		cerr << "Error when open files to write bucket\n";
-		return;
-	}
-	out << value << " ";
+	listBucket[indexBuck].push_back(value);
 }
 /*
 Open file input to get data
@@ -44,10 +36,10 @@ bool SequenceBucketSort::GenerateBucket(int minValue, int maxValue,
 Write list number has shorted to output file
 */
 void SequenceBucketSort::writeResultToFile(deque<int> list, ofstream& out){
-	deque<int>::const_iterator head;
-	deque<int>::const_iterator tail = list.end();
-	for(head = list.begin(); head!=tail; ++head){
-		out<<*head<<" ";
+	while(!list.empty()){
+		int val = list.front();
+		out<<val<<" ";
+		list.pop_front();
 	}
 }
 /*
@@ -56,24 +48,8 @@ Then, call function to write output
 */
 void SequenceBucketSort::sortCurrentBucket(unsigned long indexBuck,
 		ofstream& out) {
-	std::ostringstream ss;
-	ss << indexBuck;
-	string s = ss.str();
-	ifstream in(s.c_str());
-	if (!in.is_open()) {
-		return;
-	}
-
-	int tmpVal;
-	deque<int> sortList;
-	while (in >> tmpVal) {
-		sortList.push_back(tmpVal);
-	}
-	in.close();
-	remove(s.c_str());
-	sort(sortList.begin(), sortList.end());
-	writeResultToFile(sortList,out);
-	sortList.clear();
+	sort(listBucket[indexBuck].begin(), listBucket[indexBuck].end());
+	writeResultToFile(listBucket[indexBuck],out);
 }
 /*
 Call function to generate all bucket from array saved in file

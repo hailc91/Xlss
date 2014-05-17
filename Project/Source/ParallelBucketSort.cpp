@@ -57,42 +57,21 @@ int sendDataToWorkers(int numBucket) {
 	return 0;
 }
 
-int receiveDataFromMaster(int indexBuck) {
-	ostringstream fileName;
-	fileName << indexBuck - 1;
-	string s = fileName.str();
-	ofstream output(s.c_str());
-	
-	if (!output.is_open()) {
-		cout << "Error when open files to write bucket\n";
-		MPI::COMM_WORLD.Abort(-1);
-		return -1;
-	}
-	
+int receiveDataFromMaster(int indexBuck, deque<int> &list) {
 	int value = INIT_PHRASE;
 	MPI_Status status;
 	
 	while(value != SORT_PHRASE) {
 		MPI_Recv(&value, 1, MPI_INT, 0, indexBuck, MPI_COMM_WORLD, &status);
-		output << value << " ";
+		//output << value << " ";
+		list.push_back(value);
 	}
 	
-	output.close();
+	//output.close();
 	return 0;
 }
 
-int sendDataToMaster(int indexBuck) {
-	ostringstream fileName;
-	fileName << indexBuck - 1;
-	string s = fileName.str();
-	ifstream input(s.c_str());
-	
-	if (!input.is_open()) {
-		cout << "Error when open input files\n";
-		MPI::COMM_WORLD.Abort(-1);
-		return -1;
-	}
-	
+int sendDataToMaster(int indexBuck, deque<int> &list) {
 	// wait until getting GATHER_PHRASE signal
 	int value = SORT_PHRASE;
 	MPI_Status status;
@@ -102,15 +81,19 @@ int sendDataToMaster(int indexBuck) {
 	}
 	
 	// read number and send it to main processors
-	while (input >> value) {
+	while(!list.empty())
+	{
+		value = list.front();
 		MPI_Send(&value, 1, MPI_INT,  0, indexBuck, MPI_COMM_WORLD);
+		list.pop_front();
 	}
 	
 	// send END_PHRASE signal to main processor
 	value = END_PHRASE;
 	MPI_Send(&value, 1, MPI_INT,  0, indexBuck, MPI_COMM_WORLD);
 	
-	input.close();
+	list.clear();
+	//input.close();
 	return 0;
 }
 
@@ -135,46 +118,14 @@ int receiveDataFromWorkers(int indexBuck) {
 		//list.push_back(value);
 	}
 
-	//list.pop_back();
-	//writeResultToFile(list, output);
-	//list.clear();
 	
 	output.close();
 	return 0;
 }
 
-int sortBucket(int indexBuck, int numBucket) {
-	ostringstream fileName;
-	fileName << indexBuck - 1;
-	string s = fileName.str();
-	ifstream input(s.c_str());
-	
-	if (!input.is_open()) {
-		cout << "Error when open input files\n";
-		MPI::COMM_WORLD.Abort(-1);
-		return -1;
-	}
-	
+int sortBucket(int indexBuck, int numBucket, deque<int> &sortedList) {
 	int value;
-	deque<int> sortedList;
-	input >> value;
-	
-	if(value != SORT_PHRASE) {
-		sortedList.push_back(value);
-		while (input >> value) {
-			sortedList.push_back(value);
-		}
-	}
-	remove(s.c_str());
-	ofstream result(s.c_str());
-	
 	sort(sortedList.begin(), sortedList.end());
-	sortedList.pop_front();
-	
-	writeResultToFile(sortedList, result);
-	
-	sortedList.clear();
-	input.close();
 	return 0;
 }
 
@@ -194,7 +145,7 @@ int main(int argc, char** argv) {
 		remove(outputFile.c_str());
 		sendDataToWorkers(size - 1);
 		endTime = MPI::Wtime();
-		eslapsedTime = (endTime - startTime) * 1000;
+		eslapsedTime = (endTime - startTime);
 		cout<<"send data time: "<<eslapsedTime<<endl;
 		
 		// complete initial phrase and send signal to all processors to process sort phrase
@@ -216,18 +167,20 @@ int main(int argc, char** argv) {
 			
 		}	
 		endTime = MPI::Wtime();
-		eslapsedTime = (endTime - startTime) * 1000;
+		eslapsedTime = (endTime - startTime);
 		cout<<"sort and gather result time: "<<eslapsedTime<<endl;
 	}
 	else {
+	
+		deque<int> list;
 		// get numbers from main processor
-		receiveDataFromMaster(rank);
+		receiveDataFromMaster(rank, list);
 		
 		// sort each bucket
-		sortBucket(rank, size - 1);
+		sortBucket(rank, size - 1, list);
 		
 		// send sorted bucket to main processor
-		sendDataToMaster(rank);	
+		sendDataToMaster(rank, list);	
 	}
 	
 	MPI::Finalize();

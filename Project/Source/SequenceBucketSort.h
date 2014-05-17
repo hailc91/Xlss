@@ -7,6 +7,7 @@
 #include <sstream>
 #include <cmath>
 #include <deque>
+#include <vector>
 #include <algorithm>
 
 using namespace std;
@@ -16,6 +17,8 @@ private:
 	string fileInput;
 //Number bucket need to devide
 	unsigned long numBucket;
+//List bucket
+	deque<int> listBucket[3];
 //Max value of array
 	int maxVal;
 //Min value of array

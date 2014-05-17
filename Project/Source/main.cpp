@@ -1,12 +1,7 @@
 #include "SequenceBucketSort.h"
 #include <ctime>
 int main() {
-	/*ofstream test("test.txt");
-	for(size_t i =0;i<1000000; i++){
-		int a = rand()%100;
-		test<<a<<" ";
-	}*/
-	SequenceBucketSort* sq = new SequenceBucketSort("test.txt",20,100,0);
+	SequenceBucketSort* sq = new SequenceBucketSort("test100M.txt",2,100,0);
 	clock_t begin = clock();
 	sq->Run();
 	clock_t end = clock();
